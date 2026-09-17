@@ -1,7 +1,6 @@
 # PFTNC
 
-[![Unittest pftnc](https://github.com/bcdev/pftnc/actions/workflows/unittest.yml/badge.svg)](https://github.com/bcdev/pftnc/actions/workflows/unittest.yml)
-[![codecov](https://codecov.io/gh/bcdev/pftnc/graph/badge.svg?token=DKCrTRAWGr)](https://codecov.io/gh/bcdev/pftnc)
+[![Unittest pftnc](https://github.com/ESA-Heatwise/pftnc/actions/workflows/unittest.yml/badge.svg)](https://github.com/ESA-Heatwise/pftnc/actions/workflows/unittest.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v0.json)](https://github.com/charliermarsh/ruff) 
 [![Pixi Badge](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json)](https://pixi.sh)
 
