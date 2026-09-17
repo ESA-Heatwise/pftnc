@@ -1,0 +1,48 @@
+schema_version: 1
+
+# Every relative path is relative to the workspace that contains the sibling
+# data and experiments Git repositories. Replace <data-repository> with your
+# data repository directory name.
+
+project:
+  seed: 42
+
+simulation:
+  enabled: true
+  input_path: <data-repository>/raw/elbe-river_bunthaus.csv
+  base_path: <data-repository>/data/simulated/elbe_bunthaus
+  registry_path: <data-repository>/data/simulated/elbe_bunthaus/elbe_bunthaus.yaml
+  description: "First version of pft simulated dataset for the elbe river bunthaus station including log-fraction ratios"
+  site_name: elbe_bunthaus
+  date_column: time
+  sensors:
+    chime:
+      revisit_days: 11
+      noise_std: null
+      columns:
+        - chime_diatoms_ug_per_l
+        - chime_cyanobacteria_ug_per_l
+        - chime_others_ug_per_l
+    lstm:
+      revisit_days: 2
+      noise_std: null
+      columns:
+        - lstm_lswt_c
+    s2:
+      revisit_days: 5
+      noise_std: 0.03
+      columns:
+        - s2_chl_ug_per_l
+        - s2_tur_mg_per_l
+        - s2_cdom_1_per_m
+    s3:
+      revisit_days: 1
+      noise_std: 0.04
+      columns:
+        - s3_chl_ug_per_l
+        - s3_tur_mg_per_l
+        - s3_cdom_1_per_m
+  cloud_mask:
+    winter: 0.75
+    summer: 0.25
+    default: 0.5

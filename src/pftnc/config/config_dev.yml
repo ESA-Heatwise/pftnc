@@ -1,0 +1,116 @@
+project:
+  seed: 42
+
+feature_engineering:
+  input_dataset:
+    # registry-managed mode
+    base_path: ../../../notebooks/data/simulated/elbe_bunthaus_new/
+    registry_path: ../../../notebooks/data/simulated/elbe_bunthaus_new/simulated.yaml
+    version: elbe_bunthaus_20260528T145101Z_52ec2551_29e36c
+    
+    # OR direct-path mode
+    # path: /absolute/path/to/dataset
+
+  output_dataset:
+    storage:
+      base_path: ../../../notebooks/data/feature_engineered
+      registry_path: ../../../notebooks/data/feature_engineered.yaml
+      description: First feature engineering test from src
+    metadata:
+      sites:
+        - elbe_bunthaus
+      dataset_schema:
+        date_column: time
+        group_column: site
+        sensors:
+          chime:
+            - chime_diatoms_ug_per_l
+            - chime_cyanobacteria_ug_per_l
+            - chime_others_ug_per_l
+
+          lstm:
+            - lstm_lswt_c
+
+          s2:
+            - s2_chl_ug_per_l
+            - s2_tur_mg_per_l
+            - s2_cdom_1_per_m
+
+          s3:
+            - s3_chl_ug_per_l
+            - s3_tur_mg_per_l
+            - s3_cdom_1_per_m
+
+        targets:
+          - diatoms_ug_per_l
+          - cyanobacterial_ug_per_l
+          - others_ug_per_l
+
+      splits:
+        final_test_year: 2023
+
+  features:
+    log_fractions:
+        enabled: true
+        epsilon: 0.01
+        denominator: others_ug_per_l
+    
+    rolling:
+        windows: [3]
+        statistics:
+          - mean
+          # - median
+          # - max
+          # - slope
+          # - std
+          # - count
+
+
+training:
+  experiment_name: test_run
+  output_dir: outputs
+  input_dataset:
+    base_path: /mnt/c/Work/git_repos/pftnc-data/data/feature_engineered/uto
+    registry_path: /mnt/c/Work/git_repos/pftnc-data/data/feature_engineered/uto/uto.yaml
+    version: uto_20260528T163157Z_d27cd237_a0c265
+  model:
+    type: xgboost
+    # TODO: further rename it to `model_file`
+    save_path: model.json
+    params:
+      n_estimators: 50
+      max_depth: 6
+      learning_rate: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_lambda: 1
+      reg_alpha: 0
+      early_stopping_rounds: 50
+      tree_method: hist
+      random_state: 42
+  metrics:
+  - mse
+  best_model_selection:
+    metric: mse
+    direction: minimize
+    target: null
+    mode: mean
+
+tuning:
+  enabled: true
+  n_trials: 2
+  direction: minimize
+  objective_metric: mse
+  objective_aggregation: mean
+  target_weights:
+    diatoms_ug_per_l: 0.5
+    cyanobacterial_ug_per_l: 0.3
+    others_ug_per_l: 0.2
+  search_space:
+    n_estimators: [2]
+    learning_rate: [0.01]
+    max_depth: [3]
+    subsample: [0.5]
+    colsample_bytree: [0.3]
+    reg_lambda: [0]
+    reg_alpha: [0]

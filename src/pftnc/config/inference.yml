@@ -1,0 +1,23 @@
+schema_version: 1
+
+# Paths are relative to the workspace containing sibling Git repositories.
+model:
+  bundle_path: <experiments-repository>/model_bundle
+  selection: best_overall
+
+input_dataset:
+  path: <data-repository>/data/input.csv
+
+# Include the model feature columns in the prediction CSV.
+save_model_inputs: true
+# Write both predictions.csv and the resolved inference_config.yml.
+save_outputs: true
+# Include the Pandas row index in predictions.csv.
+save_index: false
+
+# latest: one final row per site
+# from_date: every row from start_date through the end of the input
+mode: latest
+# start_date: 2024-01-01
+
+output_path: <experiments-repository>/outputs/predictions.csv

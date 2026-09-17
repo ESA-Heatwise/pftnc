@@ -1,0 +1,222 @@
+schema_version: 1
+
+# PFTNC requires sibling Git repositories under one workspace. Every relative
+# path in this file is relative to that workspace, not this config file or the
+# current shell directory. Replace <data-repository> and
+# <experiments-repository> with your repository directory names.
+
+project:
+  seed: 42
+
+# This file configures feature engineering, model training, and hyperparameter
+# tuning. Paths must be workspace-relative.
+#
+# The usual workflow is:
+#   1. Configure feature_engineering and create a feature-engineered dataset.
+#   2. Point training.input_dataset at that registered dataset version.
+#   3. Run training and, optionally, tuning.
+
+feature_engineering:
+  input_dataset:
+    # Choose exactly one input mode.
+    # Registry-managed mode (recommended when datasets are versioned):
+    base_path: <data-repository>/data/simulated/<your_site>
+    registry_path: <data-repository>/data/simulated/<your_site>/simulated.yaml
+    version: <your_simulated_dataset_version>
+
+    # OR direct-path mode. If this is used, comment out base_path,
+    # registry_path, and version above.
+    # path: /absolute/path/to/dataset
+
+  output_dataset:
+    storage:
+      base_path: <data-repository>/data/feature_engineered/<your_site>
+      registry_path: <data-repository>/data/feature_engineered/<your_site>/feature_engineered.yaml
+      description: Feature-engineered dataset
+    metadata:
+      sites:
+        - elbe_bunthaus
+      dataset_schema:
+        # Names of the date and grouping columns in the input dataset.
+        date_column: time
+        group_column: site
+
+        # Every raw sensor used here must be listed under sensors. Feature
+        # engineering creates rolling features for each listed sensor.
+        sensors:
+          chime:
+            - chime_diatoms_ug_per_l
+            - chime_cyanobacteria_ug_per_l
+            - chime_others_ug_per_l
+
+          lstm:
+            - lstm_lswt_c
+
+          s2:
+            - s2_chl_ug_per_l
+            - s2_tur_mg_per_l
+            - s2_cdom_1_per_m
+
+          s3:
+            - s3_chl_ug_per_l
+            - s3_tur_mg_per_l
+            - s3_cdom_1_per_m
+
+        targets:
+          # Target columns are outputs to predict, not model input features.
+          - diatoms_ug_per_l
+          - cyanobacterial_ug_per_l
+          - others_ug_per_l
+
+      splits:
+        final_test_year: 2023
+
+  features:
+    # Rolling features are generated for every configured sensor, window, and
+    # statistic. They are automatically included in the model input.
+    # For example, windows: [3] and statistics: [mean] creates:
+    #   <sensor>_mean_3
+    #
+    # Changing this section changes both the generated columns and the
+    # automatically selected model features.
+    rolling:
+      windows: [3]
+      statistics:
+        - mean
+        # - median
+        # - max
+        # - slope
+        # - std
+        # - count
+
+
+training:
+  # Training consumes the feature-engineered dataset produced above. The
+  # dataset version must match a registered output dataset.
+  # Training writes models, metrics, predictions, and reports under output_dir.
+  experiment_name: pft_nc_test1
+  description: describe your experiment
+  output_dir: <experiments-repository>/outputs
+  input_dataset:
+    base_path: <data-repository>/data/feature_engineered/<your_site>
+    registry_path: <data-repository>/data/feature_engineered/<your_site>/feature_engineered.yaml
+    version: <your_feature_engineered_dataset_version>
+
+  # Feature engineering creates all candidate columns once. This section
+  # selects the columns used by this experiment, so multiple experiments can
+  # reuse the same feature-engineered dataset.
+  feature_selection:
+    # With the defaults below, the model receives:
+    #   - all original non-CHIME sensor columns, such as s2_* and s3_*;
+    #   - all rolling columns generated from features.rolling, including
+    #     rolling CHIME features.
+    #
+    # Raw CHIME columns are not automatic features because gap rows have
+    # missing current CHIME observations. Add them under include if needed.
+    # Exclude wins if a column appears in both lists.
+    include: []
+    exclude: []
+
+    # Examples of optional non-rolling generated features that can be added to
+    # include:
+    #   - <sensor>_days_since_obs
+    #   - chime_<quantity>_last_observed
+    #   - doy_sin
+    #   - doy_cos
+    # Raw CHIME columns can also be added to include explicitly.
+
+  model:
+    # Only xgboost is currently registered.
+    type: xgboost
+
+    # multi_target trains one model for all outputs. per_target trains one
+    # independent model for each physical target.
+    mode: multi_target
+    save_path: model.json
+
+    # Parameters passed to xgboost.XGBRegressor in multi_target mode.
+    params:
+      objective: reg:squarederror
+      eval_metric: rmse
+      n_estimators: 500
+      max_depth: 6
+      learning_rate: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_lambda: 1
+      reg_alpha: 0
+      early_stopping_rounds: 50
+      tree_method: hist
+
+    # For per_target mode, use params_by_target instead of params. Keys must
+    # exactly match feature_engineering.output_dataset.metadata.dataset_schema.targets.
+    # params and params_by_target are mutually exclusive.
+    # mode: per_target
+    # params_by_target:
+    #   diatoms_ug_per_l:
+    #     n_estimators: 500
+    #     max_depth: 6
+    #     learning_rate: 0.05
+    #   cyanobacterial_ug_per_l:
+    #     n_estimators: 500
+    #     max_depth: 6
+
+  # Transformations are applied before fitting and inverted before metrics and
+  # exported predictions. Omitting this section uses absolute/identity targets.
+  target_transformations:
+    per_target: {}
+    # Per-target options: absolute or log_delta. log_delta requires a
+    # reference_feature, which must also be included in training.feature_selection.include.
+    # per_target:
+    #   diatoms_ug_per_l:
+    #     type: absolute
+    #   cyanobacterial_ug_per_l:
+    #     type: log_delta
+    #     reference_feature: chime_cyanobacteria_ug_per_l_last_observed
+
+    # Joint transformation: This is only compatible with
+    # multi_target mode and cannot be combined with non-absolute per-target
+    # transformations such as log_delta.
+    # log_fractions:
+    #   denominator: others_ug_per_l
+    #   epsilon: 0.01
+
+  # Metrics are evaluated after inverse transformation in physical units.
+  # Supported: mse, mae, rmse, r2, explained_variance, max_error,
+  # median_absolute_error.
+  metrics:
+    - mse
+    - rmse
+    - r2
+
+  best_model_selection:
+    # This metric must be listed in training.metrics.
+    metric: rmse
+    direction: minimize       # minimize or maximize
+    # Optional target selects one target. If omitted, aggregate across targets.
+    # target: diatoms_ug_per_l
+    mode: mean                # mean, median, or worst
+
+tuning:
+  # Set enabled to false to skip hyperparameter tuning.
+  enabled: true
+  n_trials: 2
+  direction: minimize         # minimize or maximize
+  objective_metric: rmse
+  # Aggregate scores across targets using mean, weighted, or worst.
+  objective_aggregation: mean
+  # Required for weighted aggregation; every target needs a weight.
+  # target_weights:
+  #   diatoms_ug_per_l: 0.5
+  #   cyanobacterial_ug_per_l: 0.3
+  #   others_ug_per_l: 0.2
+  # Two integers -> integer range; two numeric values including a float ->
+  # float range; any other list -> categorical choices.
+  search_space:
+    n_estimators: [2, 5, 10, 20, 50, 100, 500]
+    learning_rate: [0.01, 0.05, 0.1]
+    max_depth: [3, 4, 5, 6, 7, 8, 10, 20]
+    subsample: [0.5, 0.8, 1.0]
+    colsample_bytree: [0.3, 0.6, 0.8, 1.0]
+    reg_lambda: [0, 1, 5, 50]
+    reg_alpha: [0, 0.1, 1, 10]
