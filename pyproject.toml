@@ -26,10 +26,6 @@ requires-python = ">= 3.11"
 version = "0.1.1"
 description = "Predicts PFT from simulated CHIME, LSTM, S2 and S3 data via radiometric transfer simulations"
 
-[project.urls]
-Homepage = "Update your homepage here"
-Repository = "Update your repository here"
-
 [project.optional-dependencies]
 postgres = [
     "psycopg2-binary>=2.9.10,<3",
